@@ -115,15 +115,23 @@ def _find_data_start(ws, comunas_row: int) -> int:
 
 
 def _find_data_end(ws, data_start: int) -> int:
-    """Última fila de datos de tarifas (antes de las notas al pie)."""
+    """Última fila de datos de tarifas: detecta inicio de notas al pie reales."""
+    # Textos que inequívocamente inician la sección de notas/pie de página
+    NOTE_STARTERS = (
+        "cargo por servicio público: incorpora",
+        "usuarios que registren",
+        "los valores indicados son exentos",
+        "tramo factor etr:",
+        "precios para valorización",
+    )
     for r in range(data_start + 5, ws.max_row):
         b = ws.cell(r, 2).value
         c = ws.cell(r, 3).value
-        if b and isinstance(b, str) and c is None:
-            b_l = b.lower()
-            # Si no parece nombre de tarifa ni encabezado, es nota al pie
-            if not any(x in b_l for x in ["tarifa", "bt", "at", "tr"]) or len(b) > 100:
-                return r
+        if not b or not isinstance(b, str) or c is not None:
+            continue
+        b_l = b.lower().strip()
+        if any(b_l.startswith(k) for k in NOTE_STARTERS):
+            return r
     return ws.max_row - 30
 
 
@@ -496,7 +504,7 @@ new Chart(document.getElementById('c').getContext('2d'),{{
                         f"$ {per_cmp}":  lambda x: f"{x:,.3f}" if pd.notna(x) else "—",
                         "Variación %":   lambda x: f"{x:+.2f}%" if pd.notna(x) else "—",
                     })
-                    .applymap(color_var, subset=["Variación %"]),
+                    .map(color_var, subset=["Variación %"]),
                 use_container_width=True, hide_index=True,
             )
 
@@ -550,7 +558,7 @@ new Chart(document.getElementById('c').getContext('2d'),{{
                             f"$ {per_ult}": lambda x: f"{x:,.3f}" if pd.notna(x) else "—",
                             "Variación %":  lambda x: f"{x:+.2f}%" if pd.notna(x) else "—",
                         })
-                        .applymap(color_alert, subset=["Variación %"]),
+                        .map(color_alert, subset=["Variación %"]),
                     use_container_width=True, hide_index=True, height=500,
                 )
                 st.download_button(
