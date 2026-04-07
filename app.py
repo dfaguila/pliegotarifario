@@ -552,13 +552,13 @@ with tabs[0]:
     st.markdown('<div class="section-title">Consulta de tarifas por localidad</div>', unsafe_allow_html=True)
     c1, c2, c3, c4 = st.columns([2, 2, 1, 1])
     with c1:
-        sel_loc = st.selectbox("Localidad", localidades_list)
+        sel_loc = st.selectbox("Localidad", localidades_list, key="q_loc")
     with c2:
-        sel_tar = st.selectbox("Tarifa", ["Todas"] + tarifas_list)
+        sel_tar = st.selectbox("Tarifa", ["Todas"] + tarifas_list, key="q_tar")
     with c3:
-        sel_per = st.selectbox("Período", ["Último"] + periodos_ordenados)
+        sel_per = st.selectbox("Período", ["Último"] + periodos_ordenados, key="q_per")
     with c4:
-        pt1 = st.radio("Precio", ["Neto", "C/IVA"], horizontal=True)
+        pt1 = st.radio("Precio", ["Neto", "C/IVA"], horizontal=True, key="q_precio")
 
     pcol = "valor_neto" if pt1 == "Neto" else "valor_civa"
     per_filt = periodos_ordenados[-1] if sel_per == "Último" else sel_per
@@ -587,10 +587,10 @@ with tabs[1]:
     st.markdown('<div class="section-title">Comparación entre localidades</div>', unsafe_allow_html=True)
     c1, c2 = st.columns([3, 2])
     with c1:
-        locs_sel = st.multiselect("Localidades (máx 6)", localidades_list, default=localidades_list[:3], max_selections=6)
+        locs_sel = st.multiselect("Localidades (máx 6)", localidades_list, default=localidades_list[:3], max_selections=6, key="cmp_locs")
     with c2:
-        tar_comp = st.selectbox("Tarifa", tarifas_list)
-        per_comp = st.selectbox("Período", ["Último"] + periodos_ordenados)
+        tar_comp = st.selectbox("Tarifa", tarifas_list, key="cmp_tar")
+        per_comp = st.selectbox("Período", ["Último"] + periodos_ordenados, key="cmp_per")
         pc2 = st.radio("Precio", ["Neto", "C/IVA"], horizontal=True, key="cmp_precio")
 
     pcol2 = "valor_neto" if pc2 == "Neto" else "valor_civa"
@@ -838,13 +838,13 @@ with tabs[3]:
     st.markdown('<div class="section-title">Base de datos normalizada completa</div>', unsafe_allow_html=True)
     c1, c2, c3, c4 = st.columns(4)
     with c1:
-        f_per = st.multiselect("Período", periodos_ordenados)
+        f_per = st.multiselect("Período", periodos_ordenados, key="db_per")
     with c2:
-        f_com = st.multiselect("Comuna", comunas_list)
+        f_com = st.multiselect("Comuna", comunas_list, key="db_com")
     with c3:
-        f_tar = st.multiselect("Tarifa", tarifas_list)
+        f_tar = st.multiselect("Tarifa", tarifas_list, key="db_tar")
     with c4:
-        f_txt = st.text_input("Buscar concepto", placeholder="ej: energía")
+        f_txt = st.text_input("Buscar concepto", placeholder="ej: energía", key="db_txt")
 
     df_full = df_all.copy()
     if f_per:
@@ -888,10 +888,10 @@ with tabs[4]:
     else:
         c1, c2 = st.columns(2)
         with c1:
-            per_iny = st.selectbox("Período", ["Último"] + periodos_ordenados)
+            per_iny = st.selectbox("Período", ["Último"] + periodos_ordenados, key="iny_per")
         with c2:
             locs_iny = sorted(df_iny_all["localidad"].dropna().unique().tolist())
-            f_loc_iny = st.multiselect("Filtrar localidad", locs_iny)
+            f_loc_iny = st.multiselect("Filtrar localidad", locs_iny, key="iny_locs")
 
         per_i = periodos_ordenados[-1] if per_iny == "Último" else per_iny
         df_iny_f = df_iny_all[df_iny_all["periodo"] == per_i].copy()
