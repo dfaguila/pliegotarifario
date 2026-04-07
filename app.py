@@ -1,49 +1,197 @@
-import streamlit as st
-import pandas as pd
-import openpyxl
+
 import io
-import re
 import json
+import re
+
+import openpyxl
+import pandas as pd
+import streamlit as st
 
 st.set_page_config(
     page_title="Pliego Tarifario SAESA",
     page_icon="⚡",
     layout="wide",
+    initial_sidebar_state="expanded",
 )
 
+# =============================================================================
+# ESTILO VISUAL CORREGIDO
+# =============================================================================
 st.markdown("""
 <style>
-    .stApp { background: #f5f7fa; }
-    h1 { color: #4a0e8f; }
-    h2, h3 { color: #3b0764; }
-    .metric-card {
-        background: white;
-        border-radius: 12px;
-        padding: 16px 20px;
-        box-shadow: 0 2px 8px rgba(0,0,0,.08);
-        text-align: center;
-        margin-bottom: 8px;
-    }
-    .metric-card .label { font-size: .8rem; color: #666; margin-bottom: 4px; }
-    .metric-card .value { font-size: 1.4rem; font-weight: 700; color: #4a0e8f; }
-    .tariff-header {
-        background: linear-gradient(135deg, #4a0e8f, #7c3aed);
-        color: white;
-        padding: 8px 16px;
-        border-radius: 8px;
-        font-weight: 600;
-        margin: 8px 0 4px 0;
-    }
-    .period-badge {
-        display: inline-block;
-        background: #ede9fe;
-        color: #4a0e8f;
-        border-radius: 20px;
-        padding: 2px 12px;
-        font-size: .8rem;
-        font-weight: 600;
-        margin: 2px;
-    }
+:root{
+    --bg: #f3f6fb;
+    --card: #ffffff;
+    --card-2: #f8fafc;
+    --text: #111827;
+    --muted: #6b7280;
+    --primary: #2563eb;
+    --primary-2: #1d4ed8;
+    --accent: #7c3aed;
+    --border: #dbe3ef;
+    --sidebar: #0f172a;
+    --sidebar-2: #111827;
+    --success: #16a34a;
+}
+
+html, body, [data-testid="stAppViewContainer"] {
+    background: var(--bg) !important;
+    color: var(--text) !important;
+}
+
+.stApp {
+    background: linear-gradient(180deg, #eef3f9 0%, #f8fbff 100%) !important;
+}
+
+[data-testid="stHeader"]{
+    background: rgba(255,255,255,0.0) !important;
+}
+
+[data-testid="stSidebar"] {
+    background: linear-gradient(180deg, var(--sidebar) 0%, var(--sidebar-2) 100%) !important;
+    border-right: 1px solid rgba(255,255,255,.08);
+}
+
+[data-testid="stSidebar"] * {
+    color: #f8fafc !important;
+}
+
+[data-testid="stFileUploader"] section {
+    background: rgba(255,255,255,.04) !important;
+    border: 1px solid rgba(255,255,255,.10) !important;
+}
+
+.block-container {
+    padding-top: 1.4rem;
+    padding-bottom: 2rem;
+    max-width: 1500px;
+}
+
+.main-title {
+    font-size: 2.3rem;
+    font-weight: 800;
+    color: var(--text);
+    margin-bottom: .15rem;
+    letter-spacing: -0.02em;
+}
+.main-subtitle {
+    color: var(--muted);
+    font-size: 1rem;
+    margin-bottom: 1.2rem;
+}
+.panel {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 1rem 1.15rem;
+    box-shadow: 0 8px 24px rgba(15, 23, 42, .05);
+}
+.metric-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 1rem 1.1rem;
+    box-shadow: 0 6px 18px rgba(15, 23, 42, .05);
+    min-height: 110px;
+}
+.metric-label {
+    color: var(--muted);
+    font-size: .85rem;
+    margin-bottom: .35rem;
+    font-weight: 600;
+}
+.metric-value {
+    color: var(--primary-2);
+    font-size: 2rem;
+    font-weight: 800;
+    line-height: 1.05;
+}
+.metric-sub {
+    color: var(--muted);
+    font-size: .82rem;
+    margin-top: .35rem;
+}
+.period-badge {
+    display: inline-block;
+    background: #e0ecff;
+    color: #1e40af;
+    border: 1px solid #bfdbfe;
+    border-radius: 999px;
+    padding: 4px 12px;
+    margin: 4px 6px 0 0;
+    font-size: .82rem;
+    font-weight: 700;
+}
+.tariff-header {
+    background: linear-gradient(90deg, #5b21b6 0%, #7c3aed 100%);
+    color: white;
+    padding: 10px 14px;
+    border-radius: 12px;
+    font-weight: 800;
+    margin: 18px 0 8px 0;
+    border: 1px solid rgba(255,255,255,.15);
+}
+.section-title {
+    color: var(--text);
+    font-size: 1.5rem;
+    font-weight: 800;
+    margin-bottom: .8rem;
+}
+.stTabs [data-baseweb="tab-list"] {
+    gap: .35rem;
+    border-bottom: 1px solid var(--border);
+}
+.stTabs [data-baseweb="tab"] {
+    border-radius: 12px 12px 0 0;
+    background: #eef2ff;
+    color: #334155 !important;
+    border: 1px solid var(--border);
+    border-bottom: none !important;
+    padding: .6rem 1rem;
+    font-weight: 700;
+}
+.stTabs [aria-selected="true"] {
+    background: white !important;
+    color: var(--primary-2) !important;
+}
+div[data-baseweb="select"] > div,
+div[data-baseweb="input"] > div,
+.stTextInput input {
+    background: #ffffff !important;
+    color: var(--text) !important;
+    border: 1px solid var(--border) !important;
+    border-radius: 12px !important;
+}
+.stMultiSelect [data-baseweb="tag"]{
+    background: #e0ecff !important;
+    border-radius: 999px !important;
+    border: 1px solid #bfdbfe !important;
+}
+.stRadio label, .stSelectbox label, .stMultiSelect label, .stTextInput label {
+    color: var(--text) !important;
+    font-weight: 700 !important;
+}
+.stButton>button, .stDownloadButton>button {
+    border-radius: 12px !important;
+    border: 1px solid transparent !important;
+    font-weight: 700 !important;
+}
+.stDownloadButton>button {
+    background: linear-gradient(90deg, var(--primary), var(--accent)) !important;
+    color: white !important;
+}
+.stAlert {
+    border-radius: 14px !important;
+}
+[data-testid="stDataFrame"] {
+    background: white !important;
+    border: 1px solid var(--border);
+    border-radius: 14px;
+}
+.small-note {
+    color: var(--muted);
+    font-size: .86rem;
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -52,222 +200,285 @@ MESES = {
     "mayo": 5, "junio": 6, "julio": 7, "agosto": 8,
     "septiembre": 9, "octubre": 10, "noviembre": 11, "diciembre": 12,
 }
+TARIFF_PATTERN = re.compile(r"^\s*Tarifa\s+((BT|AT|TRBT|TRAT).*)", re.IGNORECASE)
 
-
+# =============================================================================
+# HELPERS
+# =============================================================================
 def periodo_sort_key(periodo: str):
-    parts = periodo.lower().split()
-    if len(parts) == 2:
-        return (int(parts[1]), MESES.get(parts[0], 0))
-    return (9999, 0)
+    if not isinstance(periodo, str):
+        return (9999, 99)
+    m = re.search(r"(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)\s+(\d{4})", periodo.lower())
+    if not m:
+        return (9999, 99)
+    return (int(m.group(2)), MESES[m.group(1)])
 
 
-# ══════════════════════════════════════════════════════════════════════════════
-# PARSER ADAPTATIVO
-# ══════════════════════════════════════════════════════════════════════════════
-
-def _find_titulo_y_periodo(ws) -> str:
-    """Busca el título del pliego en cualquier fila/columna y extrae el período."""
-    for r in range(1, 25):
-        for col in range(1, 10):
-            val = ws.cell(r, col).value
-            if not val or not isinstance(val, str):
-                continue
-            val_l = val.lower()
-            if "suministro" in val_l and any(m in val_l for m in MESES):
-                for mes in MESES:
-                    if mes in val_l:
-                        m = re.search(r"\d{4}", val_l)
-                        year = m.group() if m else "?"
-                        return f"{mes} {year}"
-    return "desconocido"
-
-
-def _find_comunas_row(ws) -> int:
-    """Busca la fila donde aparecen las localidades."""
-    for r in range(1, 25):
-        for col in range(2, 15):
-            val = ws.cell(r, col).value
-            if val and isinstance(val, str) and (" - Aéreo" in val or " - Subterráneo" in val):
-                return r
-    return 5
-
-
-def _extract_localidades(ws, comunas_row: int) -> dict:
-    """Extrae {col_index: nombre_localidad} ignorando celdas 'Comunas'."""
-    localidades = {}
-    for col in range(4, ws.max_column + 1):
-        val = ws.cell(comunas_row, col).value
-        if val and isinstance(val, str):
-            val_s = val.strip()
-            if " - " in val_s and "Comunas" not in val_s:
-                localidades[col] = val_s
-    return localidades
-
-
-def _find_data_start(ws, comunas_row: int) -> int:
-    """Primera fila de datos reales (después de la fila de $ NETO/C/IVA)."""
-    for r in range(comunas_row + 1, comunas_row + 6):
-        for col in range(2, 8):
-            val = ws.cell(r, col).value
-            if val and isinstance(val, str) and "neto" in val.lower():
-                return r + 1
-    return comunas_row + 3
-
-
-def _find_data_end(ws, data_start: int) -> int:
-    """Última fila de datos de tarifas: detecta inicio de notas al pie reales."""
-    # Textos que inequívocamente inician la sección de notas/pie de página
-    NOTE_STARTERS = (
-        "cargo por servicio público: incorpora",
-        "usuarios que registren",
-        "los valores indicados son exentos",
-        "tramo factor etr:",
-        "precios para valorización",
-    )
-    for r in range(data_start + 5, ws.max_row):
-        b = ws.cell(r, 2).value
-        c = ws.cell(r, 3).value
-        if not b or not isinstance(b, str) or c is not None:
-            continue
-        b_l = b.lower().strip()
-        if any(b_l.startswith(k) for k in NOTE_STARTERS):
-            return r
-    return ws.max_row - 30
-
-
-def _find_injection_rows(ws) -> list:
-    """Encuentra filas de inyecciones."""
-    result = []
-    for r in range(ws.max_row - 30, ws.max_row + 1):
-        b = ws.cell(r, 2).value
-        if b and isinstance(b, str) and "inyectada" in b.lower():
-            result.append(r)
-    return result
-
-
-def _find_inj_comunas_row(ws, inj_rows: list) -> int | None:
-    """Fila de localidades de la sección de inyecciones."""
-    if not inj_rows:
+def clean_text(val):
+    if val is None:
         return None
-    for r in range(max(1, inj_rows[0] - 5), inj_rows[0]):
-        for col in range(2, 8):
-            val = ws.cell(r, col).value
-            if val and isinstance(val, str) and (" - Aéreo" in val or " - Subterráneo" in val):
-                return r
+    return str(val).replace("\n", " ").replace("\r", " ").strip()
+
+
+def to_num(v):
+    if isinstance(v, (int, float)):
+        return float(v)
     return None
 
 
+def choose_sheet(workbook):
+    """Prioriza 'Pub. Zonal'. Si no existe, usa la primera hoja visible."""
+    for preferred in ["Pub. Zonal", "PUB. ZONAL", "Pub.Zonal"]:
+        if preferred in workbook.sheetnames:
+            return workbook[preferred], preferred
+
+    for ws in workbook.worksheets:
+        if ws.sheet_state == "visible":
+            return ws, ws.title
+
+    return workbook.active, workbook.active.title
+
+
+def find_period(ws):
+    for r in range(1, min(ws.max_row, 20) + 1):
+        for c in range(1, min(ws.max_column, 8) + 1):
+            txt = clean_text(ws.cell(r, c).value)
+            if not txt:
+                continue
+            low = txt.lower()
+            m = re.search(r"(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)\s+de\s+(\d{4})", low)
+            if "tarifas de suministro" in low and m:
+                return f"{m.group(1)} {m.group(2)}"
+    return "desconocido"
+
+
+def find_localidades_row(ws):
+    for r in range(1, min(ws.max_row, 20) + 1):
+        matches = 0
+        for c in range(4, min(ws.max_column, 40) + 1):
+            txt = clean_text(ws.cell(r, c).value)
+            if txt and (" - Aéreo" in txt or " - Subterráneo" in txt):
+                matches += 1
+        if matches >= 2:
+            return r
+    return 5
+
+
+def extract_localidades(ws, row_idx):
+    localidades = {}
+    col = 4
+    while col <= ws.max_column:
+        txt = clean_text(ws.cell(row_idx, col).value)
+        if txt and (" - Aéreo" in txt or " - Subterráneo" in txt):
+            localidades[col] = txt
+            # En estos pliegos el valor neto está en esta col y c/iva en la siguiente
+            col += 2
+        else:
+            col += 1
+    return localidades
+
+
+def find_data_start(ws, comunas_row):
+    for r in range(comunas_row + 1, min(comunas_row + 8, ws.max_row) + 1):
+        vals = [clean_text(ws.cell(r, c).value) for c in range(3, min(ws.max_column, 12) + 1)]
+        if any(v and "$ NETO" in v.upper() for v in vals):
+            return r + 1
+    return comunas_row + 3
+
+
+def find_tariff_headers(ws, data_start):
+    headers = []
+    for r in range(data_start, ws.max_row + 1):
+        txt = clean_text(ws.cell(r, 2).value)
+        c3 = ws.cell(r, 3).value
+        if txt and c3 is None and TARIFF_PATTERN.match(txt):
+            headers.append((r, txt))
+    return headers
+
+
+def find_injection_start(ws):
+    for r in range(1, ws.max_row + 1):
+        txt = clean_text(ws.cell(r, 2).value)
+        if txt and txt.lower().startswith("precios para valorización de inyecciones de energía"):
+            return r
+    return None
+
+
+def split_localidad(localidad):
+    parts = localidad.rsplit(" - ", 1)
+    if len(parts) == 2:
+        return parts[0], parts[1]
+    return localidad, ""
+
+
+# =============================================================================
+# PARSER
+# =============================================================================
 @st.cache_data(show_spinner=False)
-def procesar_excel(file_bytes: bytes) -> tuple:
-    wb = openpyxl.load_workbook(io.BytesIO(file_bytes))
-    ws = wb.active
+def procesar_excel(file_bytes: bytes, file_name: str):
+    wb = openpyxl.load_workbook(io.BytesIO(file_bytes), data_only=True)
+    ws, sheet_used = choose_sheet(wb)
 
-    periodo      = _find_titulo_y_periodo(ws)
-    comunas_row  = _find_comunas_row(ws)
-    data_start   = _find_data_start(ws, comunas_row)
-    data_end     = _find_data_end(ws, data_start)
-    localidades  = _extract_localidades(ws, comunas_row)
-    inj_rows     = _find_injection_rows(ws)
-    inj_com_row  = _find_inj_comunas_row(ws, inj_rows)
+    periodo = find_period(ws)
+    comunas_row = find_localidades_row(ws)
+    localidades = extract_localidades(ws, comunas_row)
+    data_start = find_data_start(ws, comunas_row)
+    injection_start = find_injection_start(ws)
+    tariff_headers = find_tariff_headers(ws, data_start)
 
-    # Parsear tarifas
-    current_tariff = None
+    if not localidades:
+        raise ValueError(f"No se encontraron localidades válidas en la hoja '{sheet_used}'")
+    if not tariff_headers:
+        raise ValueError(f"No se encontraron encabezados de tarifas en la hoja '{sheet_used}'")
+
     rows = []
 
-    for r in range(data_start, data_end):
-        b = ws.cell(r, 2).value
-        c = ws.cell(r, 3).value
-        if not b:
-            continue
-        b_str = str(b).strip()
-        if c is None:
-            if b_str:
-                current_tariff = b_str
-            continue
-        if current_tariff is None:
-            continue
-        concepto = b_str
-        unidad   = str(c).strip()
-        for loc_col, localidad in localidades.items():
-            neto = ws.cell(r, loc_col).value
-            civa = ws.cell(r, loc_col + 1).value
-            parts = localidad.rsplit(" - ", 1)
-            rows.append({
-                "periodo":          periodo,
-                "tarifa":           current_tariff,
-                "concepto":         concepto,
-                "unidad":           unidad,
-                "localidad":        localidad,
-                "comuna":           parts[0] if len(parts) == 2 else localidad,
-                "tipo_suministro":  parts[1] if len(parts) == 2 else "",
-                "valor_neto":       round(float(neto), 4) if isinstance(neto, (int, float)) else None,
-                "valor_civa":       round(float(civa), 4) if isinstance(civa, (int, float)) else None,
-            })
+    # Construye bloques por tarifa
+    for i, (header_row, tarifa) in enumerate(tariff_headers):
+        next_header_row = tariff_headers[i + 1][0] if i + 1 < len(tariff_headers) else (injection_start or ws.max_row + 1)
+        end_row = next_header_row - 1
+
+        for r in range(header_row + 1, end_row + 1):
+            concepto = clean_text(ws.cell(r, 2).value)
+            unidad = clean_text(ws.cell(r, 3).value)
+
+            if not concepto:
+                continue
+            # Evitar notas/pies dentro de bloques
+            if unidad is None:
+                continue
+
+            for loc_col, localidad in localidades.items():
+                neto = to_num(ws.cell(r, loc_col).value)
+                civa = to_num(ws.cell(r, loc_col + 1).value)
+                comuna, tipo_suministro = split_localidad(localidad)
+
+                rows.append({
+                    "archivo": file_name,
+                    "hoja_origen": sheet_used,
+                    "periodo": periodo,
+                    "tarifa": tarifa,
+                    "concepto": concepto,
+                    "unidad": unidad,
+                    "localidad": localidad,
+                    "comuna": comuna,
+                    "tipo_suministro": tipo_suministro,
+                    "valor_neto": round(neto, 6) if neto is not None else None,
+                    "valor_civa": round(civa, 6) if civa is not None else None,
+                })
 
     df_tarifas = pd.DataFrame(rows)
 
-    # Parsear inyecciones
-    inj_loc = _extract_localidades(ws, inj_com_row) if inj_com_row else localidades
-    inj_result = []
-    for r in inj_rows:
-        concepto = ws.cell(r, 2).value
-        unidad   = ws.cell(r, 3).value
-        if not concepto:
-            continue
-        for loc_col, localidad in inj_loc.items():
-            neto = ws.cell(r, loc_col).value
-            parts = localidad.rsplit(" - ", 1)
-            inj_result.append({
-                "periodo":         periodo,
-                "concepto":        str(concepto).strip(),
-                "unidad":          str(unidad).strip() if unidad else "",
-                "localidad":       localidad,
-                "comuna":          parts[0] if len(parts) == 2 else localidad,
-                "tipo_suministro": parts[1] if len(parts) == 2 else "",
-                "valor_neto":      round(float(neto), 4) if isinstance(neto, (int, float)) else None,
-            })
+    # Inyecciones
+    inj_rows = []
+    if injection_start:
+        inj_localidades_row = None
+        for r in range(injection_start, min(injection_start + 8, ws.max_row) + 1):
+            if any(
+                clean_text(ws.cell(r, c).value) and (" - Aéreo" in clean_text(ws.cell(r, c).value) or " - Subterráneo" in clean_text(ws.cell(r, c).value))
+                for c in range(4, min(ws.max_column, 40) + 1)
+            ):
+                inj_localidades_row = r
+                break
 
-    df_inyecciones = pd.DataFrame(inj_result)
-    return df_tarifas, df_inyecciones, periodo
+        inj_localidades = extract_localidades(ws, inj_localidades_row) if inj_localidades_row else localidades
+
+        for r in range((inj_localidades_row or injection_start) + 1, ws.max_row + 1):
+            concepto = clean_text(ws.cell(r, 2).value)
+            unidad = clean_text(ws.cell(r, 3).value)
+
+            if not concepto:
+                continue
+
+            low = concepto.lower()
+            if "los valores indicados son netos" in low or "sociedad austral de electricidad" in low:
+                break
+
+            if unidad is None:
+                continue
+
+            for loc_col, localidad in inj_localidades.items():
+                neto = to_num(ws.cell(r, loc_col).value)
+                if neto is None:
+                    continue
+                comuna, tipo_suministro = split_localidad(localidad)
+                inj_rows.append({
+                    "archivo": file_name,
+                    "hoja_origen": sheet_used,
+                    "periodo": periodo,
+                    "concepto": concepto,
+                    "unidad": unidad,
+                    "localidad": localidad,
+                    "comuna": comuna,
+                    "tipo_suministro": tipo_suministro,
+                    "valor_neto": round(neto, 6),
+                })
+
+    df_iny = pd.DataFrame(inj_rows)
+
+    # Catálogo útil para control
+    resumen = {
+        "archivo": file_name,
+        "hoja_usada": sheet_used,
+        "periodo": periodo,
+        "tarifas_detectadas": sorted(df_tarifas["tarifa"].dropna().unique().tolist()) if not df_tarifas.empty else [],
+        "n_tarifas": int(df_tarifas["tarifa"].nunique()) if not df_tarifas.empty else 0,
+        "n_localidades": int(df_tarifas["localidad"].nunique()) if not df_tarifas.empty else 0,
+        "n_registros": int(len(df_tarifas)),
+    }
+    return df_tarifas, df_iny, resumen
 
 
-# ══════════════════════════════════════════════════════════════════════════════
-# SIDEBAR
-# ══════════════════════════════════════════════════════════════════════════════
+# =============================================================================
+# UI SIDEBAR
+# =============================================================================
 with st.sidebar:
     st.markdown("## ⚡ SAESA Tarifas")
+    st.caption("Parser corregido para hoja Pub. Zonal")
     st.markdown("---")
-    st.markdown("### 📂 Cargar pliegos")
     uploaded_files = st.file_uploader(
-        "Sube uno o más archivos Excel",
+        "Sube uno o más pliegos tarifarios Excel",
         type=["xlsx"],
         accept_multiple_files=True,
-        help="Cada archivo corresponde a un período tarifario distinto.",
+        help="La app prioriza la hoja 'Pub. Zonal' y extrae tarifas BT*, AT*, TRBT*, TRAT* e inyecciones.",
     )
-    if uploaded_files:
-        st.success(f"{len(uploaded_files)} archivo(s) cargado(s)")
+    st.markdown("---")
+    st.markdown('<div class="small-note">El parser usa <b>Pub. Zonal</b> como hoja principal. Si no existe, usa la primera hoja visible.</div>', unsafe_allow_html=True)
 
-st.markdown("# ⚡ Pliego Tarifario SAESA")
+# =============================================================================
+# TITULAR
+# =============================================================================
+st.markdown('<div class="main-title">⚡ Pliego Tarifario SAESA</div>', unsafe_allow_html=True)
+st.markdown(
+    '<div class="main-subtitle">Versión corregida para leer la hoja <b>Pub. Zonal</b>, capturar tarifas <b>BT*</b>, <b>AT*</b>, <b>TRBT*</b>, <b>TRAT*</b> y mostrar la plataforma con un fondo limpio y legible.</div>',
+    unsafe_allow_html=True
+)
 
 if not uploaded_files:
-    st.info("👈 Sube uno o más archivos Excel del pliego tarifario en el panel lateral.")
+    st.info("Carga uno o más archivos Excel desde el panel izquierdo para comenzar.")
     st.stop()
 
-# ── Procesar archivos ──────────────────────────────────────────────────────────
-all_tarifas, all_iny, errors = [], [], []
+# =============================================================================
+# PROCESAMIENTO
+# =============================================================================
+all_tarifas, all_iny, all_resumen, errors = [], [], [], []
 
 progress = st.progress(0, text="Procesando archivos...")
 for i, f in enumerate(uploaded_files):
     try:
-        df_t, df_i, periodo = procesar_excel(f.read())
+        file_bytes = f.read()
+        df_t, df_i, resumen = procesar_excel(file_bytes, f.name)
         all_tarifas.append(df_t)
-        all_iny.append(df_i)
-        progress.progress((i + 1) / len(uploaded_files), text=f"✅ {periodo}")
+        if not df_i.empty:
+            all_iny.append(df_i)
+        all_resumen.append(resumen)
+        progress.progress((i + 1) / len(uploaded_files), text=f"✅ {f.name} — {resumen['periodo']} — hoja {resumen['hoja_usada']}")
     except Exception as e:
-        errors.append(f"❌ {f.name}: {e}")
-        progress.progress((i + 1) / len(uploaded_files))
+        errors.append(f"{f.name}: {e}")
+        progress.progress((i + 1) / len(uploaded_files), text=f"⚠️ {f.name}")
 
 progress.empty()
+
 for err in errors:
     st.error(err)
 
@@ -275,37 +486,57 @@ if not all_tarifas:
     st.error("No se pudo procesar ningún archivo.")
     st.stop()
 
-df_all     = pd.concat(all_tarifas, ignore_index=True)
+df_all = pd.concat(all_tarifas, ignore_index=True)
 df_iny_all = pd.concat(all_iny, ignore_index=True) if all_iny else pd.DataFrame()
+df_resumen = pd.DataFrame(all_resumen)
 
-periodos_ordenados = sorted(df_all["periodo"].unique(), key=periodo_sort_key)
-df_all["periodo"]  = pd.Categorical(df_all["periodo"], categories=periodos_ordenados, ordered=True)
-df_all             = df_all.sort_values("periodo")
+periodos_ordenados = sorted(df_all["periodo"].dropna().unique().tolist(), key=periodo_sort_key)
+df_all["periodo"] = pd.Categorical(df_all["periodo"], categories=periodos_ordenados, ordered=True)
+df_all = df_all.sort_values(["periodo", "tarifa", "localidad", "concepto"]).reset_index(drop=True)
 
-localidades_list = sorted(df_all["localidad"].unique())
-comunas_list     = sorted(df_all["comuna"].unique())
-tarifas_list     = sorted(df_all["tarifa"].unique())
+localidades_list = sorted(df_all["localidad"].dropna().unique().tolist())
+comunas_list = sorted(df_all["comuna"].dropna().unique().tolist())
+tarifas_list = sorted(df_all["tarifa"].dropna().unique().tolist())
 
-# ── Métricas ───────────────────────────────────────────────────────────────────
-cols_m = st.columns(5)
-for col, label, val in zip(
-    cols_m,
-    ["Períodos", "Localidades", "Tarifas", "Conceptos", "Registros"],
-    [len(periodos_ordenados), df_all["localidad"].nunique(),
-     df_all["tarifa"].nunique(), df_all["concepto"].nunique(), len(df_all)],
-):
-    col.markdown(f"""<div class="metric-card">
-        <div class="label">{label}</div>
-        <div class="value">{val:,}</div>
-    </div>""", unsafe_allow_html=True)
+# =============================================================================
+# MÉTRICAS
+# =============================================================================
+m1, m2, m3, m4, m5 = st.columns(5)
+metrics = [
+    ("Períodos", len(periodos_ordenados), "Archivos tarifarios leídos"),
+    ("Localidades", df_all["localidad"].nunique(), "Pub. Zonal"),
+    ("Tarifas", df_all["tarifa"].nunique(), "BT, AT, TRBT, TRAT"),
+    ("Conceptos", df_all["concepto"].nunique(), "Cargos y componentes"),
+    ("Registros", f"{len(df_all):,}", "Base normalizada"),
+]
+for col, (label, value, sub) in zip([m1, m2, m3, m4, m5], metrics):
+    col.markdown(
+        f"""
+        <div class="metric-card">
+            <div class="metric-label">{label}</div>
+            <div class="metric-value">{value}</div>
+            <div class="metric-sub">{sub}</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
-badges = " ".join(f'<span class="period-badge">{p}</span>' for p in periodos_ordenados)
-st.markdown(f"**Períodos cargados:** {badges}", unsafe_allow_html=True)
-st.markdown("---")
+periodos_badges = "".join([f'<span class="period-badge">{p}</span>' for p in periodos_ordenados])
+st.markdown(f"<div class='panel'><b>Períodos cargados:</b><br>{periodos_badges}</div>", unsafe_allow_html=True)
 
-# ══════════════════════════════════════════════════════════════════════════════
-# TABS PRINCIPALES
-# ══════════════════════════════════════════════════════════════════════════════
+# Control parser
+with st.expander("Ver control de lectura por archivo"):
+    st.dataframe(df_resumen, use_container_width=True, hide_index=True)
+    if not df_resumen.empty:
+        st.write("Tarifas detectadas por archivo:")
+        for _, row in df_resumen.iterrows():
+            st.markdown(f"**{row['archivo']}** · hoja usada: `{row['hoja_usada']}` · tarifas: `{', '.join(row['tarifas_detectadas'])}`")
+
+st.markdown("<br>", unsafe_allow_html=True)
+
+# =============================================================================
+# TABS
+# =============================================================================
 tabs = st.tabs([
     "🔍 Consulta por Localidad",
     "📊 Comparar Localidades",
@@ -314,16 +545,22 @@ tabs = st.tabs([
     "🔋 Inyecciones",
 ])
 
-# ── TAB 1: Consulta ────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------------------
+# TAB 1
+# -----------------------------------------------------------------------------
 with tabs[0]:
-    st.subheader("Consulta de tarifas por localidad")
+    st.markdown('<div class="section-title">Consulta de tarifas por localidad</div>', unsafe_allow_html=True)
     c1, c2, c3, c4 = st.columns([2, 2, 1, 1])
-    with c1: sel_loc = st.selectbox("Localidad", localidades_list, key="loc1")
-    with c2: sel_tar = st.selectbox("Tarifa", ["Todas"] + tarifas_list, key="tar1")
-    with c3: sel_per = st.selectbox("Período", ["Último"] + periodos_ordenados, key="per1")
-    with c4: pt1     = st.radio("Precio", ["Neto", "C/IVA"], horizontal=True, key="pt1")
+    with c1:
+        sel_loc = st.selectbox("Localidad", localidades_list)
+    with c2:
+        sel_tar = st.selectbox("Tarifa", ["Todas"] + tarifas_list)
+    with c3:
+        sel_per = st.selectbox("Período", ["Último"] + periodos_ordenados)
+    with c4:
+        pt1 = st.radio("Precio", ["Neto", "C/IVA"], horizontal=True)
 
-    pcol     = "valor_neto" if pt1 == "Neto" else "valor_civa"
+    pcol = "valor_neto" if pt1 == "Neto" else "valor_civa"
     per_filt = periodos_ordenados[-1] if sel_per == "Último" else sel_per
 
     df_loc = df_all[(df_all["localidad"] == sel_loc) & (df_all["periodo"] == per_filt)].copy()
@@ -338,26 +575,26 @@ with tabs[0]:
             show = grp[["concepto", "unidad", pcol]].copy()
             show.columns = ["Concepto", "Unidad", f"$ {pt1}"]
             st.dataframe(
-                show.reset_index(drop=True).style.format(
-                    {f"$ {pt1}": lambda x: f"{x:,.3f}" if pd.notna(x) else "—"}
-                ),
-                use_container_width=True, hide_index=True,
+                show.style.format({f"$ {pt1}": lambda x: f"{x:,.3f}" if pd.notna(x) else "—"}),
+                use_container_width=True,
+                hide_index=True,
             )
 
-# ── TAB 2: Comparar ────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------------------
+# TAB 2
+# -----------------------------------------------------------------------------
 with tabs[1]:
-    st.subheader("Comparación entre localidades")
+    st.markdown('<div class="section-title">Comparación entre localidades</div>', unsafe_allow_html=True)
     c1, c2 = st.columns([3, 2])
     with c1:
-        locs_sel = st.multiselect("Localidades (máx 6)", localidades_list,
-                                   default=localidades_list[:3], max_selections=6, key="locs2")
+        locs_sel = st.multiselect("Localidades (máx 6)", localidades_list, default=localidades_list[:3], max_selections=6)
     with c2:
-        tar_comp = st.selectbox("Tarifa", tarifas_list, key="tar2")
-        per_comp = st.selectbox("Período", ["Último"] + periodos_ordenados, key="per2")
-        pc2      = st.radio("Precio", ["Neto", "C/IVA"], horizontal=True, key="pc2")
+        tar_comp = st.selectbox("Tarifa", tarifas_list)
+        per_comp = st.selectbox("Período", ["Último"] + periodos_ordenados)
+        pc2 = st.radio("Precio", ["Neto", "C/IVA"], horizontal=True, key="cmp_precio")
 
-    pcol2    = "valor_neto" if pc2 == "Neto" else "valor_civa"
-    per_c2   = periodos_ordenados[-1] if per_comp == "Último" else per_comp
+    pcol2 = "valor_neto" if pc2 == "Neto" else "valor_civa"
+    per_c2 = periodos_ordenados[-1] if per_comp == "Último" else per_comp
 
     if not locs_sel:
         st.info("Selecciona al menos una localidad.")
@@ -366,116 +603,157 @@ with tabs[1]:
             (df_all["tarifa"] == tar_comp) &
             (df_all["localidad"].isin(locs_sel)) &
             (df_all["periodo"] == per_c2)
-        ]
+        ].copy()
+
         if df_comp.empty:
-            st.warning("Sin datos.")
+            st.warning("Sin datos para la selección.")
         else:
             pivot = df_comp.pivot_table(
-                index=["concepto", "unidad"], columns="localidad",
-                values=pcol2, aggfunc="first",
+                index=["concepto", "unidad"],
+                columns="localidad",
+                values=pcol2,
+                aggfunc="first",
             ).reset_index()
             pivot.columns.name = None
-            nc = [c for c in pivot.columns if c not in ["concepto", "unidad"]]
+            num_cols = [c for c in pivot.columns if c not in ["concepto", "unidad"]]
             st.dataframe(
-                pivot.style.format({c: lambda x: f"{x:,.3f}" if pd.notna(x) else "—" for c in nc}),
-                use_container_width=True, hide_index=True,
+                pivot.style.format({c: lambda x: f"{x:,.3f}" if pd.notna(x) else "—" for c in num_cols}),
+                use_container_width=True,
+                hide_index=True,
             )
 
-# ── TAB 3: Evolución ───────────────────────────────────────────────────────────
+# -----------------------------------------------------------------------------
+# TAB 3
+# -----------------------------------------------------------------------------
 with tabs[2]:
-    st.subheader("Evolución temporal de tarifas")
+    st.markdown('<div class="section-title">Evolución temporal de tarifas</div>', unsafe_allow_html=True)
 
     if len(periodos_ordenados) < 2:
-        st.info("Carga al menos 2 archivos de distintos períodos para ver la evolución.")
+        st.info("Carga al menos dos períodos para ver evolución.")
     else:
         ec1, ec2, ec3, ec4 = st.columns([2, 2, 2, 1])
-        with ec1: evo_loc   = st.selectbox("Localidad", localidades_list, key="evo_loc")
-        with ec2: evo_tar   = st.selectbox("Tarifa", tarifas_list, key="evo_tar")
+        with ec1:
+            evo_loc = st.selectbox("Localidad", localidades_list, key="evo_loc")
+        with ec2:
+            evo_tar = st.selectbox("Tarifa", tarifas_list, key="evo_tar")
         with ec3:
-            conc_disp = sorted(df_all[df_all["tarifa"] == evo_tar]["concepto"].unique())
-            evo_conc  = st.selectbox("Concepto", conc_disp, key="evo_conc")
-        with ec4: evo_p     = st.radio("Precio", ["Neto", "C/IVA"], horizontal=True, key="evo_p")
+            conceptos_disp = sorted(df_all[df_all["tarifa"] == evo_tar]["concepto"].dropna().unique().tolist())
+            evo_conc = st.selectbox("Concepto", conceptos_disp, key="evo_conc")
+        with ec4:
+            evo_p = st.radio("Precio", ["Neto", "C/IVA"], horizontal=True, key="evo_precio")
 
         evo_col = "valor_neto" if evo_p == "Neto" else "valor_civa"
-
         df_evo = df_all[
             (df_all["localidad"] == evo_loc) &
             (df_all["tarifa"] == evo_tar) &
             (df_all["concepto"] == evo_conc)
-        ][["periodo", evo_col]].dropna().sort_values("periodo").copy()
+        ][["periodo", evo_col]].dropna().copy()
 
-        st1, st2, st3, st4 = st.tabs(["📈 Gráfico", "📋 Tabla mes a mes", "📉 Variación %", "🚨 Alertas"])
+        subtabs = st.tabs(["📈 Gráfico", "📋 Tabla mes a mes", "📉 Variación %", "🚨 Alertas"])
 
-        with st1:
+        with subtabs[0]:
             if df_evo.empty:
                 st.warning("Sin datos para la combinación seleccionada.")
             else:
-                unidad_str = df_all[
-                    (df_all["tarifa"] == evo_tar) & (df_all["concepto"] == evo_conc)
-                ]["unidad"].iloc[0]
-                labels     = df_evo["periodo"].astype(str).tolist()
-                values     = df_evo[evo_col].tolist()
-                chart_data = json.dumps({"labels": labels, "values": values})
-                title_str  = f"{evo_conc} — {evo_loc}"
-                ylabel_str = f"$ {evo_p} ({unidad_str})"
+                unidad = df_all[
+                    (df_all["tarifa"] == evo_tar) &
+                    (df_all["concepto"] == evo_conc)
+                ]["unidad"].dropna().iloc[0]
 
-                chart_html = f"""<!DOCTYPE html><html><head>
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-</head><body style="margin:0;padding:10px;background:#fff;">
-<canvas id="c" height="110"></canvas>
-<script>
-const d={chart_data};
-new Chart(document.getElementById('c').getContext('2d'),{{
-  type:'line',
-  data:{{labels:d.labels,datasets:[{{
-    label:{json.dumps(ylabel_str)},data:d.values,
-    borderColor:'#4a0e8f',backgroundColor:'rgba(74,14,143,0.08)',
-    borderWidth:3,pointBackgroundColor:'#7c3aed',pointRadius:6,pointHoverRadius:9,
-    tension:0.3,fill:true
-  }}]}},
-  options:{{responsive:true,plugins:{{
-    title:{{display:true,text:{json.dumps(title_str)},font:{{size:14,weight:'bold'}},color:'#3b0764'}},
-    tooltip:{{callbacks:{{label:c=>'$ '+c.parsed.y.toLocaleString('es-CL',{{minimumFractionDigits:3}})}}}}
-  }},scales:{{y:{{
-    title:{{display:true,text:{json.dumps(ylabel_str)}}},
-    ticks:{{callback:v=>'$'+v.toLocaleString('es-CL',{{minimumFractionDigits:0}})}}
-  }}}}}}
-}});
-</script></body></html>"""
+                labels = df_evo["periodo"].astype(str).tolist()
+                values = df_evo[evo_col].tolist()
+                chart_data = json.dumps({"labels": labels, "values": values})
+
+                chart_html = f"""
+                <!DOCTYPE html>
+                <html>
+                <head>
+                <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+                </head>
+                <body style="margin:0;background:#ffffff;font-family:Arial,sans-serif;">
+                    <canvas id="chart" height="120"></canvas>
+                    <script>
+                    const d = {chart_data};
+                    new Chart(document.getElementById('chart'), {{
+                        type: 'line',
+                        data: {{
+                            labels: d.labels,
+                            datasets: [{{
+                                label: {json.dumps(f"$ {evo_p} ({unidad})")},
+                                data: d.values,
+                                borderColor: '#2563eb',
+                                backgroundColor: 'rgba(37,99,235,0.10)',
+                                borderWidth: 3,
+                                pointRadius: 5,
+                                pointHoverRadius: 7,
+                                tension: 0.25,
+                                fill: true
+                            }}]
+                        }},
+                        options: {{
+                            responsive: true,
+                            plugins: {{
+                                legend: {{ display: true }},
+                                title: {{
+                                    display: true,
+                                    text: {json.dumps(f"{evo_conc} — {evo_loc}")},
+                                    color: '#111827',
+                                    font: {{ size: 16, weight: 'bold' }}
+                                }}
+                            }},
+                            scales: {{
+                                x: {{
+                                    ticks: {{ color: '#475569' }},
+                                    grid: {{ color: '#e5e7eb' }}
+                                }},
+                                y: {{
+                                    ticks: {{
+                                        color: '#475569',
+                                        callback: function(value) {{
+                                            return '$' + value.toLocaleString('es-CL');
+                                        }}
+                                    }},
+                                    grid: {{ color: '#e5e7eb' }}
+                                }}
+                            }}
+                        }}
+                    }});
+                    </script>
+                </body>
+                </html>
+                """
                 st.components.v1.html(chart_html, height=420)
-                show_e = df_evo.copy()
-                show_e.columns = ["Período", f"$ {evo_p}"]
                 st.dataframe(
-                    show_e.style.format({f"$ {evo_p}": "{:,.3f}"}),
-                    use_container_width=True, hide_index=True,
+                    df_evo.rename(columns={evo_col: f"$ {evo_p}", "periodo": "Período"}).style.format({f"$ {evo_p}": "{:,.3f}"}),
+                    use_container_width=True,
+                    hide_index=True,
                 )
 
-        with st2:
-            st.markdown("**Todos los conceptos de la tarifa por período**")
+        with subtabs[1]:
             df_pt = df_all[
-                (df_all["localidad"] == evo_loc) & (df_all["tarifa"] == evo_tar)
+                (df_all["localidad"] == evo_loc) &
+                (df_all["tarifa"] == evo_tar)
             ].pivot_table(
-                index=["concepto", "unidad"], columns="periodo",
-                values=evo_col, aggfunc="first",
+                index=["concepto", "unidad"],
+                columns="periodo",
+                values=evo_col,
+                aggfunc="first",
             ).reset_index()
             df_pt.columns.name = None
-            nc_t = [c for c in df_pt.columns if c not in ["concepto", "unidad"]]
-            if df_pt.empty:
-                st.warning("Sin datos.")
-            else:
-                st.dataframe(
-                    df_pt.style.format(
-                        {c: lambda x: f"{x:,.3f}" if pd.notna(x) else "—" for c in nc_t}
-                    ).highlight_null(color="#f3f4f6"),
-                    use_container_width=True, hide_index=True,
-                )
+            num_cols = [c for c in df_pt.columns if c not in ["concepto", "unidad"]]
+            st.dataframe(
+                df_pt.style.format({c: lambda x: f"{x:,.3f}" if pd.notna(x) else "—" for c in num_cols}),
+                use_container_width=True,
+                hide_index=True,
+            )
 
-        with st3:
-            p1c, p2c = st.columns(2)
-            with p1c: per_base = st.selectbox("Período base", periodos_ordenados[:-1], key="pbase")
-            with p2c:
-                ops = [p for p in periodos_ordenados if periodo_sort_key(p) > periodo_sort_key(per_base)]
-                per_cmp = st.selectbox("Período a comparar", ops, key="pcmp")
+        with subtabs[2]:
+            cva, cvb = st.columns(2)
+            with cva:
+                per_base = st.selectbox("Período base", periodos_ordenados[:-1], key="var_base")
+            with cvb:
+                cand = [p for p in periodos_ordenados if periodo_sort_key(p) > periodo_sort_key(per_base)]
+                per_cmp = st.selectbox("Período a comparar", cand, key="var_cmp")
 
             def get_vals(per):
                 return df_all[
@@ -486,133 +764,137 @@ new Chart(document.getElementById('c').getContext('2d'),{{
 
             df_var = get_vals(per_base).rename(columns={evo_col: "base"}).merge(
                 get_vals(per_cmp).rename(columns={evo_col: "nuevo"}),
-                on=["concepto", "unidad"], how="outer",
+                on=["concepto", "unidad"],
+                how="outer"
             )
-            df_var["var_%"] = ((df_var["nuevo"] - df_var["base"]) / df_var["base"] * 100).round(2)
-            df_var.columns  = ["Concepto", "Unidad", f"$ {per_base}", f"$ {per_cmp}", "Variación %"]
-
-            def color_var(val):
-                if pd.isna(val): return ""
-                if val > 0: return "color:#dc2626;font-weight:600"
-                if val < 0: return "color:#16a34a;font-weight:600"
-                return "color:#6b7280"
-
+            df_var["variacion_%"] = ((df_var["nuevo"] - df_var["base"]) / df_var["base"] * 100).round(2)
+            df_var = df_var.rename(columns={
+                "concepto": "Concepto",
+                "unidad": "Unidad",
+                "base": f"$ {per_base}",
+                "nuevo": f"$ {per_cmp}",
+                "variacion_%": "Variación %",
+            })
             st.dataframe(
-                df_var.style
-                    .format({
-                        f"$ {per_base}": lambda x: f"{x:,.3f}" if pd.notna(x) else "—",
-                        f"$ {per_cmp}":  lambda x: f"{x:,.3f}" if pd.notna(x) else "—",
-                        "Variación %":   lambda x: f"{x:+.2f}%" if pd.notna(x) else "—",
-                    })
-                    .map(color_var, subset=["Variación %"]),
-                use_container_width=True, hide_index=True,
+                df_var.style.format({
+                    f"$ {per_base}": lambda x: f"{x:,.3f}" if pd.notna(x) else "—",
+                    f"$ {per_cmp}": lambda x: f"{x:,.3f}" if pd.notna(x) else "—",
+                    "Variación %": lambda x: f"{x:+.2f}%" if pd.notna(x) else "—",
+                }),
+                use_container_width=True,
+                hide_index=True,
             )
 
-        with st4:
-            st.markdown(f"**Cambios entre {periodos_ordenados[-2]} → {periodos_ordenados[-1]}**")
-            umbral  = st.slider("Umbral mínimo de variación (%)", 0.0, 20.0, 1.0, 0.5, key="umbral")
+        with subtabs[3]:
+            umbral = st.slider("Umbral mínimo de variación (%)", 0.0, 30.0, 1.0, 0.5)
             per_ant = periodos_ordenados[-2]
             per_ult = periodos_ordenados[-1]
 
-            def get_all(per):
-                return df_all[df_all["periodo"] == per][
-                    ["localidad", "tarifa", "concepto", "unidad", evo_col]
-                ]
-
-            df_alert = get_all(per_ant).rename(columns={evo_col: "ant"}).merge(
-                get_all(per_ult).rename(columns={evo_col: "ult"}),
-                on=["localidad", "tarifa", "concepto", "unidad"], how="outer",
+            df_alert = df_all[df_all["periodo"] == per_ant][["localidad", "tarifa", "concepto", "unidad", evo_col]].rename(columns={evo_col: "ant"}).merge(
+                df_all[df_all["periodo"] == per_ult][["localidad", "tarifa", "concepto", "unidad", evo_col]].rename(columns={evo_col: "ult"}),
+                on=["localidad", "tarifa", "concepto", "unidad"],
+                how="outer"
             )
-            df_alert["var_%"] = ((df_alert["ult"] - df_alert["ant"]) / df_alert["ant"] * 100).round(2)
-            df_alert = df_alert[df_alert["var_%"].abs() >= umbral].dropna(subset=["var_%"])
-            df_alert = df_alert.sort_values("var_%", ascending=False)
+            df_alert["variacion_%"] = ((df_alert["ult"] - df_alert["ant"]) / df_alert["ant"] * 100).round(2)
+            df_alert = df_alert[df_alert["variacion_%"].abs() >= umbral].dropna(subset=["variacion_%"]).copy()
 
-            al1, al2 = st.columns(2)
-            with al1: a_loc = st.selectbox("Filtrar localidad", ["Todas"] + comunas_list, key="al_loc")
-            with al2: a_tar = st.selectbox("Filtrar tarifa",    ["Todas"] + tarifas_list, key="al_tar")
-            if a_loc != "Todas": df_alert = df_alert[df_alert["localidad"].str.startswith(a_loc)]
-            if a_tar != "Todas": df_alert = df_alert[df_alert["tarifa"] == a_tar]
+            f1, f2 = st.columns(2)
+            with f1:
+                floc = st.selectbox("Filtrar localidad", ["Todas"] + comunas_list, key="alerta_loc")
+            with f2:
+                ftar = st.selectbox("Filtrar tarifa", ["Todas"] + tarifas_list, key="alerta_tar")
 
-            st.caption(f"{len(df_alert)} conceptos con variación ≥ {umbral}%")
+            if floc != "Todas":
+                df_alert = df_alert[df_alert["localidad"].str.startswith(floc, na=False)]
+            if ftar != "Todas":
+                df_alert = df_alert[df_alert["tarifa"] == ftar]
 
-            if df_alert.empty:
-                st.success("✅ No se detectaron variaciones significativas.")
-            else:
-                df_alert = df_alert.rename(columns={
-                    "localidad": "Localidad", "tarifa": "Tarifa",
-                    "concepto": "Concepto",   "unidad": "Unidad",
-                    "ant": f"$ {per_ant}",    "ult": f"$ {per_ult}",
-                    "var_%": "Variación %",
-                })
+            df_alert = df_alert.rename(columns={
+                "localidad": "Localidad",
+                "tarifa": "Tarifa",
+                "concepto": "Concepto",
+                "unidad": "Unidad",
+                "ant": f"$ {per_ant}",
+                "ult": f"$ {per_ult}",
+                "variacion_%": "Variación %",
+            })
 
-                def color_alert(val):
-                    if pd.isna(val): return ""
-                    if val > 0: return "background:#fee2e2;color:#dc2626;font-weight:600"
-                    if val < 0: return "background:#dcfce7;color:#16a34a;font-weight:600"
-                    return ""
+            st.caption(f"{len(df_alert)} registros con variación absoluta mayor o igual a {umbral}%")
+            st.dataframe(
+                df_alert.style.format({
+                    f"$ {per_ant}": lambda x: f"{x:,.3f}" if pd.notna(x) else "—",
+                    f"$ {per_ult}": lambda x: f"{x:,.3f}" if pd.notna(x) else "—",
+                    "Variación %": lambda x: f"{x:+.2f}%" if pd.notna(x) else "—",
+                }),
+                use_container_width=True,
+                hide_index=True,
+                height=460,
+            )
 
-                st.dataframe(
-                    df_alert.reset_index(drop=True).style
-                        .format({
-                            f"$ {per_ant}": lambda x: f"{x:,.3f}" if pd.notna(x) else "—",
-                            f"$ {per_ult}": lambda x: f"{x:,.3f}" if pd.notna(x) else "—",
-                            "Variación %":  lambda x: f"{x:+.2f}%" if pd.notna(x) else "—",
-                        })
-                        .map(color_alert, subset=["Variación %"]),
-                    use_container_width=True, hide_index=True, height=500,
-                )
-                st.download_button(
-                    "⬇️ Descargar alertas CSV",
-                    df_alert.to_csv(index=False).encode("utf-8-sig"),
-                    "alertas_tarifarias.csv", "text/csv",
-                )
-
-# ── TAB 4: Base de datos ───────────────────────────────────────────────────────
+# -----------------------------------------------------------------------------
+# TAB 4
+# -----------------------------------------------------------------------------
 with tabs[3]:
-    st.subheader("Base de datos normalizada completa")
+    st.markdown('<div class="section-title">Base de datos normalizada completa</div>', unsafe_allow_html=True)
     c1, c2, c3, c4 = st.columns(4)
-    with c1: f_per = st.multiselect("Período", periodos_ordenados, key="f_per")
-    with c2: f_com = st.multiselect("Comuna",  comunas_list,       key="f_com")
-    with c3: f_tar = st.multiselect("Tarifa",  tarifas_list,       key="f_tar")
-    with c4: f_txt = st.text_input("Buscar concepto", placeholder="ej: energía...", key="f_txt")
+    with c1:
+        f_per = st.multiselect("Período", periodos_ordenados)
+    with c2:
+        f_com = st.multiselect("Comuna", comunas_list)
+    with c3:
+        f_tar = st.multiselect("Tarifa", tarifas_list)
+    with c4:
+        f_txt = st.text_input("Buscar concepto", placeholder="ej: energía")
 
     df_full = df_all.copy()
-    if f_per: df_full = df_full[df_full["periodo"].isin(f_per)]
-    if f_com: df_full = df_full[df_full["comuna"].isin(f_com)]
-    if f_tar: df_full = df_full[df_full["tarifa"].isin(f_tar)]
-    if f_txt: df_full = df_full[df_full["concepto"].str.contains(f_txt, case=False, na=False)]
+    if f_per:
+        df_full = df_full[df_full["periodo"].isin(f_per)]
+    if f_com:
+        df_full = df_full[df_full["comuna"].isin(f_com)]
+    if f_tar:
+        df_full = df_full[df_full["tarifa"].isin(f_tar)]
+    if f_txt:
+        df_full = df_full[df_full["concepto"].str.contains(f_txt, case=False, na=False)]
 
     st.caption(f"Mostrando {len(df_full):,} registros")
     st.dataframe(
-        df_full[["periodo", "tarifa", "concepto", "unidad",
-                 "comuna", "tipo_suministro", "valor_neto", "valor_civa"]
-                ].reset_index(drop=True).style.format({
+        df_full[[
+            "archivo", "hoja_origen", "periodo", "tarifa", "concepto", "unidad",
+            "localidad", "comuna", "tipo_suministro", "valor_neto", "valor_civa"
+        ]].style.format({
             "valor_neto": lambda x: f"{x:,.3f}" if pd.notna(x) else "—",
             "valor_civa": lambda x: f"{x:,.3f}" if pd.notna(x) else "—",
         }),
-        use_container_width=True, hide_index=True, height=500,
-    )
-    st.download_button(
-        "⬇️ Descargar CSV filtrado",
-        df_full.to_csv(index=False).encode("utf-8-sig"),
-        "tarifas_saesa_filtrado.csv", "text/csv",
+        use_container_width=True,
+        hide_index=True,
+        height=520,
     )
 
-# ── TAB 5: Inyecciones ─────────────────────────────────────────────────────────
+    st.download_button(
+        "⬇️ Descargar CSV filtrado",
+        data=df_full.to_csv(index=False).encode("utf-8-sig"),
+        file_name="tarifas_saesa_filtrado.csv",
+        mime="text/csv",
+    )
+
+# -----------------------------------------------------------------------------
+# TAB 5
+# -----------------------------------------------------------------------------
 with tabs[4]:
-    st.subheader("Precios para valorización de inyecciones de energía")
-    st.caption("Valores netos (sin IVA) — Art. 149 bis DFL N°4/2006")
+    st.markdown('<div class="section-title">Precios para valorización de inyecciones</div>', unsafe_allow_html=True)
 
     if df_iny_all.empty:
         st.warning("No se encontraron datos de inyecciones.")
     else:
         c1, c2 = st.columns(2)
-        with c1: per_iny   = st.selectbox("Período", ["Último"] + periodos_ordenados, key="per_iny")
-        with c2: f_loc_iny = st.multiselect("Filtrar localidad",
-                                             sorted(df_iny_all["localidad"].unique()), key="f_iny")
+        with c1:
+            per_iny = st.selectbox("Período", ["Último"] + periodos_ordenados)
+        with c2:
+            locs_iny = sorted(df_iny_all["localidad"].dropna().unique().tolist())
+            f_loc_iny = st.multiselect("Filtrar localidad", locs_iny)
 
-        per_i   = periodos_ordenados[-1] if per_iny == "Último" else per_iny
-        df_iny_f = df_iny_all[df_iny_all["periodo"] == per_i]
+        per_i = periodos_ordenados[-1] if per_iny == "Último" else per_iny
+        df_iny_f = df_iny_all[df_iny_all["periodo"] == per_i].copy()
         if f_loc_iny:
             df_iny_f = df_iny_f[df_iny_f["localidad"].isin(f_loc_iny)]
 
@@ -620,33 +902,26 @@ with tabs[4]:
             st.warning("Sin datos.")
         else:
             pivot_iny = df_iny_f.pivot_table(
-                index=["concepto", "unidad"], columns="localidad",
-                values="valor_neto", aggfunc="first",
+                index=["concepto", "unidad"],
+                columns="localidad",
+                values="valor_neto",
+                aggfunc="first"
             ).reset_index()
             pivot_iny.columns.name = None
-            nc_i = [c for c in pivot_iny.columns if c not in ["concepto", "unidad"]]
+            num_cols = [c for c in pivot_iny.columns if c not in ["concepto", "unidad"]]
             st.dataframe(
-                pivot_iny.style.format(
-                    {c: lambda x: f"{x:,.3f}" if pd.notna(x) else "—" for c in nc_i}
-                ),
-                use_container_width=True, hide_index=True,
+                pivot_iny.style.format({c: lambda x: f"{x:,.3f}" if pd.notna(x) else "—" for c in num_cols}),
+                use_container_width=True,
+                hide_index=True,
             )
 
-        if len(periodos_ordenados) >= 2:
-            st.markdown("---")
-            st.markdown("**Evolución por localidad**")
-            loc_iny_evo = st.selectbox(
-                "Localidad", sorted(df_iny_all["localidad"].unique()), key="loc_iny_evo"
-            )
-            df_ie = df_iny_all[df_iny_all["localidad"] == loc_iny_evo].pivot_table(
-                index=["concepto", "unidad"], columns="periodo",
-                values="valor_neto", aggfunc="first",
-            ).reset_index()
-            df_ie.columns.name = None
-            nc_ie = [c for c in df_ie.columns if c not in ["concepto", "unidad"]]
-            st.dataframe(
-                df_ie.style.format(
-                    {c: lambda x: f"{x:,.3f}" if pd.notna(x) else "—" for c in nc_ie}
-                ),
-                use_container_width=True, hide_index=True,
-            )
+# =============================================================================
+# DESCARGA BD COMPLETA
+# =============================================================================
+st.markdown("<br>", unsafe_allow_html=True)
+st.download_button(
+    "⬇️ Descargar base completa normalizada",
+    data=df_all.to_csv(index=False).encode("utf-8-sig"),
+    file_name="tarifas_saesa_base_completa.csv",
+    mime="text/csv",
+)
